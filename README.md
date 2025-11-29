@@ -1,19 +1,69 @@
 ## Project Overview
 
-This repository contains a small full‑stack application built with **FastAPI** (Python) for the backend and **React + Vite** for the frontend.
+This repository contains a full‑stack application built with **FastAPI** (Python) for the backend and **React + Vite** for the frontend. The application implements an employee management system with search, filtering, pagination, and CRUD operations.
 
 The UI replicates the provided designs:
+- **Employee list screen** – matches `employee-list-UI.png`
+- **Filter panel** – matches `Filter-UI.png`
 
-- **Employee list screen** – matches `employee-list-UI.png` with:
-  - Top bar with **Add Employee**, **Search**, **Import**, **Export**, and **Filter** actions.
-  - Employee table showing **First name, Last name, Contact info icons, Department, Position, Location, Status**.
-  - Status displayed as coloured pills (Active, Not started, Terminated).
-  - Footer with **“Include terminated employees”** checkbox and pagination controls.
-- **Filter panel** – matches `Filter-UI.png` with:
-  - Status checkboxes (Active, Not started, Terminated).
-  - Dropdowns for **Locations, Companies, Departments, Positions**.
+---
 
-The frontend is wired to the backend API so that search, filters, pagination and the “Include terminated employees” checkbox all affect the data shown.
+## Project Structure
+
+```
+fastapi-react-technical-assignment/
+├── backend/                          # FastAPI backend application
+│   ├── config.py                     # Configuration settings (rate limits, DB URL, org column config)
+│   ├── database.py                   # Database connection and session management
+│   ├── main.py                       # FastAPI app entry point, routes registration, startup events
+│   ├── seed.py                       # Database seeding script for initial data
+│   ├── requirements.txt              # Python dependencies
+│   ├── Dockerfile                    # Docker configuration for containerization
+│   ├── models/                       # Database models and Pydantic schemas
+│   │   ├── __init__.py
+│   │   ├── employee.py               # Employee SQLModel database model
+│   │   └── schemas.py                # Pydantic schemas for request/response validation
+│   ├── repository/                   # Data access layer
+│   │   ├── __init__.py
+│   │   └── employee_repository.py    # Employee database operations (CRUD, queries)
+│   ├── service/                      # Business logic layer
+│   │   ├── __init__.py
+│   │   └── employee_service.py       # Employee business logic (serialization, filtering)
+│   ├── controller/                   # API endpoints/routes
+│   │   ├── __init__.py
+│   │   └── employee_controller.py   # Employee API routes (GET, POST endpoints)
+│   ├── middleware/                   # Middleware components
+│   │   ├── __init__.py
+│   │   └── rate_limit.py            # Rate limiting middleware (standard library only)
+│   └── tests/                        # Unit tests
+│       └── test_employees.py        # Tests for employee endpoints
+│
+├── frontend/                         # React + Vite frontend application
+│   ├── src/
+│   │   ├── App.jsx                   # Root component, renders EmployeeListPage
+│   │   ├── App.css                   # Global application styles
+│   │   ├── main.jsx                  # React entry point
+│   │   ├── index.css                 # Base CSS styles
+│   │   ├── components/               # Reusable UI components
+│   │   │   ├── Avatar.jsx            # Employee avatar with initials
+│   │   │   ├── StatusPill.jsx        # Status badge with color coding
+│   │   │   ├── TopBar.jsx            # Top action bar (Add, Search, Import, Export, Filter)
+│   │   │   ├── EmployeeTable.jsx     # Employee data table
+│   │   │   ├── Pagination.jsx        # Pagination controls
+│   │   │   ├── FilterPanel.jsx       # Filter modal component
+│   │   │   └── AddEmployeeModal.jsx  # Add employee form modal
+│   │   ├── pages/                    # Page components
+│   │   │   └── EmployeeListPage.jsx  # Main employee list page with state management
+│   │   └── services/                 # API service layer
+│   │       └── employeeService.js   # Employee API calls (fetch, create, import, export)
+│   ├── package.json                  # Node.js dependencies
+│   ├── vite.config.js                # Vite configuration
+│   └── index.html                    # HTML entry point
+│
+├── .gitignore                        # Git ignore rules for Python, Node.js, and IDE files
+├── README.md                         # This file
+└── [UI design files]                 # employee-list-UI.png, Filter-UI.png, Technical assignment.docx
+```
 
 ---
 
@@ -21,42 +71,53 @@ The frontend is wired to the backend API so that search, filters, pagination and
 
 Location: `backend/`
 
+### Architecture
+
+The backend follows a **layered architecture**:
+
+1. **Models** (`models/`): Database models (SQLModel) and Pydantic schemas
+2. **Repository** (`repository/`): Data access layer - handles all database queries
+3. **Service** (`service/`): Business logic layer - handles serialization, filtering, and business rules
+4. **Controller** (`controller/`): API endpoints - handles HTTP requests/responses
+5. **Middleware** (`middleware/`): Cross-cutting concerns like rate limiting
+
+### Key Files
+
+- **`config.py`**: Configuration settings including organization column config, rate limits, and database URL
+- **`database.py`**: Database engine setup and session dependency injection
+- **`main.py`**: FastAPI app initialization, CORS setup, route registration, and startup events
+- **`seed.py`**: Database seeding script - populates initial employee data if database is empty
+- **`models/employee.py`**: Employee database model with all fields
+- **`models/schemas.py`**: Pydantic schemas for API request/response validation
+- **`repository/employee_repository.py`**: All database queries (find, count, create, bulk create)
+- **`service/employee_service.py`**: Business logic (serialization with org-specific columns, search, filtering)
+- **`controller/employee_controller.py`**: API endpoints (GET /employees, POST /employees, etc.)
+- **`middleware/rate_limit.py`**: Rate limiting implementation using only standard library
+
 ### Main Features
 
 - **Endpoints**
-  - `GET /health` – simple health check.
-  - `GET /employees` – **employee search API** (paginated and filterable).
-  - `GET /filters` – returns distinct values for locations, companies, departments and positions to populate the filter dropdowns.
-  - `POST /employees` – add a single employee for the current organisation.
-  - `POST /employees/import` – import employees from a CSV file.
-  - `GET /employees/export` – export employees as a CSV file.
+  - `GET /health` – health check
+  - `GET /employees` – employee search API (paginated and filterable)
+  - `GET /filters` – returns distinct values for filter dropdowns
+  - `POST /employees` – add a single employee
+  - `POST /employees/import` – import employees from CSV
+  - `GET /employees/export` – export employees as CSV
+
 - **Organisations & data isolation**
-  - Every request must include header `X-Org-Id` (e.g. `org-1`).
-  - Employees belong to an organisation, and the API only returns data for the requested organisation.
-  - Tests ensure that data from `org-2` is not visible when querying as `org-1`.
+  - Every request must include header `X-Org-Id` (e.g. `org-1`)
+  - Employees belong to an organisation, and the API only returns data for the requested organisation
+  - Tests ensure that data from `org-2` is not visible when querying as `org-1`
+
 - **Dynamic columns**
-  - Per‑organisation column configuration is stored in-memory (could be moved to DB/config file):
-    - Example: `org-1` → `["department", "position", "location"]`.
-  - The `/employees` response only exposes:
-    - Identity fields: `id`, `first_name`, `last_name`, `status`.
-    - Columns listed in the org’s configuration, plus a `visible_columns` array.
-  - This prevents leaking extra attributes that are not displayed on the UI.
-- **Filtering & search**
-  - Query parameters:
-    - `page` (default: 1)
-    - `page_size` (default: 50)
-    - `search` – text search over first name, last name, department, position and location.
-    - `statuses` – comma‑separated list, e.g. `Active,Not started`.
-    - `locations`, `companies`, `departments`, `positions` – comma‑separated lists.
-    - `include_terminated` – when `false`, `Terminated` employees are hidden.
-  - Response model:
-    - `items`: list of serialised employees (see above).
-    - `total`: total number of matching employees.
-    - `page`, `page_size`.
-- **Rate limiting (no external library)**
-  - Naive fixed‑window rate limiter using only the Python standard library.
-  - Limits requests per `(client_ip, org_id, endpoint)` pair, returning **HTTP 429** when exceeded.
-- For simplicity the backend currently uses an **in‑memory list of mock employees** instead of a database. It is structured in a way that you can easily swap the mock data for a real DB later.
+  - Per‑organisation column configuration stored in `config.py`
+  - Example: `org-1` → `["department", "position", "location"]`
+  - The `/employees` response only exposes identity fields plus configured columns
+  - Prevents leaking extra attributes not displayed on the UI
+
+- **Database**: SQLite database (`employees.db`) with SQLModel ORM
+
+- **Rate limiting**: Naive fixed‑window rate limiter using only the Python standard library
 
 ### Running the Backend
 
@@ -73,20 +134,14 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 The API will be available at `http://localhost:8000`.
 
-Useful endpoints for manual checks:
-
+**Useful endpoints:**
 - `http://localhost:8000/health`
 - `http://localhost:8000/employees` (with `X-Org-Id` header)
 - `http://localhost:8000/filters` (with `X-Org-Id` header)
-
-FastAPI automatically exposes an **OpenAPI specification**:
-
 - Interactive docs: `http://localhost:8000/docs`
-- Raw OpenAPI JSON: `http://localhost:8000/openapi.json`
+- OpenAPI JSON: `http://localhost:8000/openapi.json`
 
 ### Running the Backend in Docker
-
-From the project root:
 
 ```bash
 cd backend
@@ -94,16 +149,13 @@ docker build -t employee-api .
 docker run -p 8000:8000 employee-api
 ```
 
-The API will be available at `http://localhost:8000`.
-
 ### Backend Tests
 
-Simple unit tests for the search API live in `backend/tests/test_employees.py` and cover:
-
-- Requirement of the `X-Org-Id` header.
-- Basic search and shape of the response (no extra attributes leaked).
-- Organisation scoping (no cross‑org data leaks).
-- Basic rate‑limiting behaviour.
+Tests are located in `backend/tests/test_employees.py` and cover:
+- Requirement of the `X-Org-Id` header
+- Basic search and response shape (no extra attributes leaked)
+- Organisation scoping (no cross‑org data leaks)
+- Basic rate‑limiting behaviour
 
 Run tests with:
 
@@ -119,31 +171,43 @@ pytest
 
 Location: `frontend/`
 
+### Architecture
+
+The frontend follows a **component-based architecture**:
+
+1. **Components** (`components/`): Reusable UI components
+2. **Pages** (`pages/`): Page-level components with state management
+3. **Services** (`services/`): API service layer for all backend communication
+
+### Key Files
+
+- **`App.jsx`**: Root component that renders the main page
+- **`pages/EmployeeListPage.jsx`**: Main page component with all state management and business logic
+- **`services/employeeService.js`**: Centralized API service for all employee-related API calls
+- **`components/`**: Reusable UI components:
+  - `Avatar.jsx`: Displays employee initials in a circle
+  - `StatusPill.jsx`: Status badge with color coding
+  - `TopBar.jsx`: Top action bar with buttons and search
+  - `EmployeeTable.jsx`: Employee data table
+  - `Pagination.jsx`: Pagination controls
+  - `FilterPanel.jsx`: Filter modal
+  - `AddEmployeeModal.jsx`: Add employee form modal
+
 ### Main Features
 
-- Replaces the Vite starter with an **Employee List** screen:
-  - Top action bar (`Add Employee`, `Import`, `Export`, `Filter`, search box).
-  - Table that closely mirrors `employee-list-UI.png`:
-    - Avatar initials on the first‑name column.
-    - Contact icons (mail, chat, phone) in the contact info column.
-    - Soft borders, row hover state, and rounded card styling.
-  - Footer:
-    - “Include terminated employees” checkbox.
-    - Pagination controls (Prev / Next, page numbers, page size selector).
-- **Filter Panel**:
-  - Appears as a centered modal over a dimmed background when clicking **Filter**.
-  - Matches `Filter-UI.png` in structure and typography:
-    - Status options `Active`, `Not started`, `Terminated` with coloured labels.
-    - Dropdowns for **Locations, Companies, Departments, Positions**.
-  - Connected to backend:
-    - `GET /filters` populates dropdown options.
-    - Every change to filters, search, page, page size or checkbox triggers a reload via `GET /employees` (always passing `X-Org-Id: org-1`).
-  - **Actions**
-    - **Add Employee**: opens a modal form that posts to `POST /employees` and refreshes the list on success.
-    - **Import**: opens a file picker and uploads a CSV file to `POST /employees/import`.
-    - **Export**: downloads a CSV generated by `GET /employees/export`.
+- **Employee List Page**:
+  - Top action bar (Add Employee, Search, Import, Export, Filter)
+  - Employee table with avatars, contact icons, and status badges
+  - Footer with "Include terminated employees" checkbox and pagination
+  - Filter panel modal
+  - Add employee modal
 
-The frontend expects the backend at `http://localhost:8000`. You can change the base URL in `frontend/src/App.jsx` if needed.
+- **Actions**:
+  - **Add Employee**: Opens modal form, posts to `POST /employees`, refreshes list
+  - **Import**: File picker uploads CSV to `POST /employees/import`
+  - **Export**: Downloads CSV from `GET /employees/export`
+  - **Search**: Real-time search across employee fields
+  - **Filter**: Modal with status checkboxes and dropdown filters
 
 ### Running the Frontend
 
@@ -151,34 +215,13 @@ From the project root:
 
 ```bash
 cd frontend
-npm install        
+npm install
 npm run dev
 ```
 
 Then open the URL printed by Vite (usually `http://localhost:5173`).
 
-Make sure the **backend is also running** so the table can load data.
-
----
-
-## How Things Work Together
-
-1. The React app (in `App.jsx`) keeps local state for:
-   - Employees, total count, pagination info.
-   - Search text, selected statuses, location, company, department, position.
-   - Whether to include terminated employees.
-2. Whenever one of these inputs changes, the app constructs a query string and calls:
-   - `GET /employees?{query}`.
-3. The FastAPI backend filters the in‑memory employee list according to the query parameters and responds with a paginated result list.
-4. The React UI renders that response in a table whose layout and styling mimic the provided designs.
-
----
-
-## Notes / Possible Extensions
-
-- Replace the in‑memory `MOCK_EMPLOYEES` data in `backend/main.py` with a real database using `SQLModel` / `SQLAlchemy` (already present in `requirements.txt`).
-- Extend the API to support updates/deletes and richer validation on the **Add Employee / Import** paths.
-- Add automated tests for both backend and frontend behaviour if the technical assignment requires it.
+**Note**: Make sure the **backend is also running** so the table can load data.
 
 ---
 
@@ -186,16 +229,37 @@ Make sure the **backend is also running** so the table can load data.
 
 `POST /employees/import` and `GET /employees/export` both use the same CSV schema:
 
-- Header row (order not important):
-
+**Header row** (order not important):
 ```text
 id,first_name,last_name,department,position,location,status,company
 ```
 
-- For imports:
-  - Only `first_name` and `last_name` are required; others are optional.
-  - `status` defaults to `Active` when omitted.
-  - `id` is ignored; the service assigns a fresh, unique id per import row.
-- For exports:
-  - All columns above are populated; missing values are rendered as empty strings.
+**For imports:**
+- Only `first_name` and `last_name` are required; others are optional
+- `status` defaults to `Active` when omitted
+- `id` is ignored; the service assigns a fresh, unique id per import row
 
+**For exports:**
+- All columns above are populated; missing values are rendered as empty strings
+
+---
+
+## Development Notes
+
+- The backend uses **SQLite** for simplicity, but the architecture supports easy migration to PostgreSQL/MySQL
+- Rate limiting is implemented using only the Python standard library (no external dependencies)
+- The frontend uses a service layer pattern to centralize all API calls
+- Components are separated for reusability and maintainability
+- The project structure follows clean architecture principles with clear separation of concerns
+
+---
+
+## Possible Extensions
+
+- Add update/delete endpoints for employees
+- Implement authentication and authorization
+- Add more comprehensive validation
+- Extend tests to cover more edge cases
+- Add frontend unit tests
+- Implement real-time updates with WebSockets
+- Add employee detail view/edit page
