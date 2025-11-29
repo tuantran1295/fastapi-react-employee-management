@@ -1,0 +1,6 @@
+id,first_name,last_name,department,position,location,status,company
+1,Amelia,Last,asd,Assistant Manager,Singapore,Active,Sleek
+2,Ana,Test,No department,No position,No location,Active,Sleek
+3,Arlani,Sosaia,No department,No position,Somewhere,Not started,Sleek
+4,Terminated,Employee,No department,No position,Nowhere,Terminated,Sleek
+6,Timmy,Tuan,Enginnering,Dev,Hanoi,Active,
